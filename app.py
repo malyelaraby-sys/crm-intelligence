@@ -13,100 +13,30 @@ SUPABASE_KEY = "sb_publishable_h8hgAkyRWyC4Sh9QnrDbwQ_MNjeuShu"
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# =========================================
-# ✅ ADD CONTACT FORM
-# =========================================
-
-st.header("➕ Add New Contact")
-
-with st.form("add_contact_form"):
-
-    # Basic Info
-    name = st.text_input("Name")
-    company = st.text_input("Company")
-    role = st.text_input("Role")
-    email = st.text_input("Email")
-    phone = st.text_input("Phone")
-
-    st.subheader("🧠 Customer Intelligence")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        communication_style = st.text_area(
-            "Communication Style",
-            placeholder="Formal, direct, prefers WhatsApp..."
-        )
-
-        personality_traits = st.text_area(
-            "Personality Traits",
-            placeholder="Friendly, analytical..."
-        )
-
-    with col2:
-        preferences = st.text_area(
-            "Preferences",
-            placeholder="Short meetings, morning calls..."
-        )
-
-        lifestyle_notes = st.text_area(
-            "Lifestyle Notes",
-            placeholder="Smoker, football fan..."
-        )
-
-    negotiation_notes = st.text_area(
-        "Negotiation Style",
-        placeholder="Price sensitive, needs time..."
-    )
-
-    relationship_summary = st.text_area("Relationship Summary")
-
-    playbook = st.text_area(
-        "🔥 How to Win This Client (PLAYBOOK)",
-        placeholder="DO: ... / DON'T: ..."
-    )
-
-    submitted = st.form_submit_button("Save Contact")
-
-    if submitted:
-        supabase.table("contacts").insert({
-            "name": name,
-            "company": company,
-            "role": role,
-            "email": email,
-            "phone": phone,
-            "communication_style": communication_style,
-            "personality_traits": personality_traits,
-            "preferences": preferences,
-            "lifestyle_notes": lifestyle_notes,
-            "negotiation_notes": negotiation_notes,
-            "relationship_summary": relationship_summary,
-            "playbook": playbook
-        }).execute()
-
-        st.success("✅ Contact saved successfully!")
-
+# ✅ Helper to preserve formatting
+def format_text(text):
+    if text:
+        return text.replace("\n", "  \n")
+    return ""
 
 # =========================================
-# ✅ VIEW CONTACT PROFILE (CORE FEATURE)
+# ✅ VIEW CONTACTS + PROFILE
 # =========================================
 
 st.header("📋 Contacts")
 
-response = supabase.table("contacts").select("*").execute()
+contacts_response = supabase.table("contacts").select("*").execute()
 
-if response.data:
+if contacts_response.data:
 
-    # ✅ Select contact
-    contact_names = [c["name"] for c in response.data]
+    contact_names = [c["name"] for c in contacts_response.data]
     selected_name = st.selectbox("Select a contact", contact_names)
 
-    # ✅ Get selected contact
-    selected_contact = next(c for c in response.data if c["name"] == selected_name)
+    selected_contact = next(c for c in contacts_response.data if c["name"] == selected_name)
 
     st.markdown("---")
 
-    # ✅ BASIC INFO
+    # ✅ Basic Info
     st.subheader("👤 Basic Information")
     st.write(f"**Name:** {selected_contact['name']}")
     st.write(f"**Company:** {selected_contact['company']}")
@@ -116,42 +46,172 @@ if response.data:
 
     st.markdown("---")
 
-    # ✅ CUSTOMER INTELLIGENCE
+    # ✅ Intelligence
     st.subheader("🧠 Customer Intelligence")
 
     col1, col2 = st.columns(2)
 
     with col1:
         st.write("**Communication Style**")
-        st.write(selected_contact["communication_style"])
+        st.markdown(format_text(selected_contact["communication_style"]))
 
         st.write("**Personality Traits**")
-        st.write(selected_contact["personality_traits"])
+        st.markdown(format_text(selected_contact["personality_traits"]))
 
     with col2:
         st.write("**Preferences**")
-        st.write(selected_contact["preferences"])
+        st.markdown(format_text(selected_contact["preferences"]))
 
         st.write("**Lifestyle Notes**")
-        st.write(selected_contact["lifestyle_notes"])
+        st.markdown(format_text(selected_contact["lifestyle_notes"]))
 
     st.markdown("---")
 
-    # ✅ NEGOTIATION
+    # ✅ Negotiation
     st.subheader("💼 Negotiation Style")
-    st.write(selected_contact["negotiation_notes"])
+    st.markdown(format_text(selected_contact["negotiation_notes"]))
 
     st.markdown("---")
 
-    # ✅ RELATIONSHIP
+    # ✅ Relationship
     st.subheader("📌 Relationship Summary")
-    st.write(selected_contact["relationship_summary"])
+    st.markdown(format_text(selected_contact["relationship_summary"]))
 
     st.markdown("---")
 
-    # ✅ PLAYBOOK (HIGHLIGHTED)
+    # ✅ Playbook
     st.subheader("🔥 How to Win This Client")
-    st.success(selected_contact["playbook"])
+    st.success(format_text(selected_contact["playbook"]))
+
+    st.markdown("---")
+
+    # =========================================
+    # ✅ INTERACTION HISTORY (FIRST ✅)
+    # =========================================
+
+    st.subheader("📜 Interaction History")
+
+    interactions = supabase.table("interactions") \
+        .select("*") \
+        .eq("contact_id", selected_contact["id"]) \
+        .order("created_at", desc=True) \
+        .execute()
+
+    if interactions.data:
+        for interaction in interactions.data:
+            st.markdown(f"**{interaction['type']}**")
+            st.markdown(f"📝 {format_text(interaction['notes'])}")
+            st.markdown(f"🧠 Insight: {format_text(interaction['insights_learned'])}")
+            st.write("---")
+    else:
+        st.info("No interactions yet")
+
+    st.markdown("---")
+
+    # =========================================
+    # ✅ ADD INTERACTION (AFTER HISTORY ✅)
+    # =========================================
+
+    st.subheader("➕ Log Interaction")
+
+    with st.form("interaction_form"):
+
+        interaction_type = st.selectbox("Type", ["Call", "Meeting", "WhatsApp", "Email"])
+
+        notes = st.text_area("What happened?")
+
+        insights = st.text_area(
+            "What did you learn about this client?",
+            placeholder="Capture behavior, preferences, reactions..."
+        )
+
+        submitted_interaction = st.form_submit_button("Save Interaction")
+
+        if submitted_interaction:
+            supabase.table("interactions").insert({
+                "contact_id": selected_contact["id"],
+                "type": interaction_type,
+                "notes": notes,
+                "insights_learned": insights
+            }).execute()
+
+            st.success("✅ Interaction saved!")
+            st.rerun()
 
 else:
     st.info("No contacts yet")
+
+
+# =========================================
+# ✅ ADD CONTACT (BOTTOM + TOGGLE + CANCEL + AUTO CLOSE)
+# =========================================
+
+st.markdown("---")
+st.header("➕ Add Contact")
+
+# ✅ State control
+if "show_form" not in st.session_state:
+    st.session_state.show_form = False
+
+# ✅ Buttons
+col1, col2 = st.columns([1, 5])
+
+with col1:
+    if st.button("➕ Add"):
+        st.session_state.show_form = True
+
+with col2:
+    if st.session_state.show_form:
+        if st.button("❌ Cancel"):
+            st.session_state.show_form = False
+
+# ✅ Form
+if st.session_state.show_form:
+
+    with st.form("add_contact_form"):
+
+        name = st.text_input("Name")
+        company = st.text_input("Company")
+        role = st.text_input("Role")
+        email = st.text_input("Email")
+        phone = st.text_input("Phone")
+
+        st.subheader("🧠 Customer Intelligence")
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            communication_style = st.text_area("Communication Style")
+            personality_traits = st.text_area("Personality Traits")
+
+        with col2:
+            preferences = st.text_area("Preferences")
+            lifestyle_notes = st.text_area("Lifestyle Notes")
+
+        negotiation_notes = st.text_area("Negotiation Style")
+        relationship_summary = st.text_area("Relationship Summary")
+        playbook = st.text_area("🔥 How to Win This Client (PLAYBOOK)")
+
+        submitted = st.form_submit_button("✅ Save Contact")
+
+        if submitted:
+            supabase.table("contacts").insert({
+                "name": name,
+                "company": company,
+                "role": role,
+                "email": email,
+                "phone": phone,
+                "communication_style": communication_style,
+                "personality_traits": personality_traits,
+                "preferences": preferences,
+                "lifestyle_notes": lifestyle_notes,
+                "negotiation_notes": negotiation_notes,
+                "relationship_summary": relationship_summary,
+                "playbook": playbook
+            }).execute()
+
+            st.success("✅ Contact saved successfully!")
+
+            # ✅ Auto close + refresh
+            st.session_state.show_form = False
+            st.rerun()
