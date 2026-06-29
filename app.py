@@ -86,7 +86,7 @@ if contacts_response.data:
     st.markdown("---")
 
     # =========================================
-    # ✅ INTERACTION HISTORY (FIRST ✅)
+    # ✅ INTERACTION HISTORY
     # =========================================
 
     st.subheader("📜 Interaction History")
@@ -106,10 +106,34 @@ if contacts_response.data:
     else:
         st.info("No interactions yet")
 
+    # =========================================
+    # ✅ DERIVED INSIGHTS (NEW ✅)
+    # =========================================
+
+    st.markdown("---")
+    st.subheader("🧠 Derived Insights (Auto-generated)")
+
+    if interactions.data:
+
+        all_insights = [
+            i["insights_learned"]
+            for i in interactions.data
+            if i["insights_learned"]
+        ]
+
+        if all_insights:
+            combined_insights = "\n\n".join(all_insights)
+            st.markdown(format_text(combined_insights))
+        else:
+            st.info("No insights captured yet")
+
+    else:
+        st.info("No interaction data yet")
+
     st.markdown("---")
 
     # =========================================
-    # ✅ ADD INTERACTION (AFTER HISTORY ✅)
+    # ✅ ADD INTERACTION
     # =========================================
 
     st.subheader("➕ Log Interaction")
@@ -143,17 +167,15 @@ else:
 
 
 # =========================================
-# ✅ ADD CONTACT (BOTTOM + TOGGLE + CANCEL + AUTO CLOSE)
+# ✅ ADD CONTACT (BOTTOM CONTROLLED UX)
 # =========================================
 
 st.markdown("---")
 st.header("➕ Add Contact")
 
-# ✅ State control
 if "show_form" not in st.session_state:
     st.session_state.show_form = False
 
-# ✅ Buttons
 col1, col2 = st.columns([1, 5])
 
 with col1:
@@ -165,7 +187,6 @@ with col2:
         if st.button("❌ Cancel"):
             st.session_state.show_form = False
 
-# ✅ Form
 if st.session_state.show_form:
 
     with st.form("add_contact_form"):
@@ -212,6 +233,5 @@ if st.session_state.show_form:
 
             st.success("✅ Contact saved successfully!")
 
-            # ✅ Auto close + refresh
             st.session_state.show_form = False
             st.rerun()
