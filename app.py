@@ -13,14 +13,14 @@ SUPABASE_KEY = "sb_publishable_h8hgAkyRWyC4Sh9QnrDbwQ_MNjeuShu"
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# ✅ Helper to preserve formatting
+# ✅ Helper for formatting
 def format_text(text):
     if text:
         return text.replace("\n", "  \n")
     return ""
 
 # =========================================
-# ✅ VIEW CONTACTS + PROFILE
+# ✅ CONTACTS + PROFILE
 # =========================================
 
 st.header("📋 Contacts")
@@ -107,14 +107,13 @@ if contacts_response.data:
         st.info("No interactions yet")
 
     # =========================================
-    # ✅ DERIVED INSIGHTS (NEW ✅)
+    # ✅ DERIVED INSIGHTS
     # =========================================
 
     st.markdown("---")
     st.subheader("🧠 Derived Insights (Auto-generated)")
 
     if interactions.data:
-
         all_insights = [
             i["insights_learned"]
             for i in interactions.data
@@ -129,6 +128,51 @@ if contacts_response.data:
 
     else:
         st.info("No interaction data yet")
+
+    # =========================================
+    # ✅ IMPROVED KEY PATTERNS (FIXED ✅)
+    # =========================================
+
+    st.markdown("---")
+    st.subheader("📊 Key Patterns")
+
+    combined_text = ""
+
+    # ✅ Add interaction insights
+    if interactions.data:
+        combined_text += " ".join([
+            i["insights_learned"].lower()
+            for i in interactions.data
+            if i["insights_learned"]
+        ])
+
+    # ✅ Add contact profile fields
+    combined_text += " " + (selected_contact.get("communication_style") or "").lower()
+    combined_text += " " + (selected_contact.get("personality_traits") or "").lower()
+    combined_text += " " + (selected_contact.get("preferences") or "").lower()
+
+    patterns = []
+
+    if "price" in combined_text or "expensive" in combined_text:
+        patterns.append("💰 Price sensitive")
+
+    if "slow" in combined_text or "takes time" in combined_text:
+        patterns.append("⏳ Slow decision maker")
+
+    if "fast" in combined_text:
+        patterns.append("⚡ Fast decision maker")
+
+    if "friendly" in combined_text:
+        patterns.append("😊 Responds well to friendly tone")
+
+    if "formal" in combined_text:
+        patterns.append("🏢 Prefers formal communication")
+
+    if patterns:
+        for p in patterns:
+            st.write(f"- {p}")
+    else:
+        st.info("No clear patterns detected yet")
 
     st.markdown("---")
 
@@ -167,7 +211,7 @@ else:
 
 
 # =========================================
-# ✅ ADD CONTACT (BOTTOM CONTROLLED UX)
+# ✅ ADD CONTACT (BOTTOM UX)
 # =========================================
 
 st.markdown("---")
