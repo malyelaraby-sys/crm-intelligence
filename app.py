@@ -86,6 +86,140 @@ if contacts_response.data:
     st.markdown("---")
 
     # =========================================
+    # ✅ STRUCTURED PLAYBOOK
+    # =========================================
+
+    st.subheader("🎯 Structured Playbook")
+
+    sp_col1, sp_col2, sp_col3 = st.columns(3)
+
+    with sp_col1:
+        st.markdown("### Communication")
+        st.write(f"**Formality:** {selected_contact.get('formality') or 'Not set'}")
+        st.write(f"**Preferred Channel:** {selected_contact.get('preferred_channel') or 'Not set'}")
+        st.write(f"**Meeting Style:** {selected_contact.get('meeting_style') or 'Not set'}")
+
+    with sp_col2:
+        st.markdown("### Decision Making")
+        st.write(f"**Decision Speed:** {selected_contact.get('decision_speed') or 'Not set'}")
+        st.write(f"**Price Sensitivity:** {selected_contact.get('price_sensitivity') or 'Not set'}")
+        st.write(f"**Approval Process:** {selected_contact.get('approval_process') or 'Not set'}")
+
+    with sp_col3:
+        st.markdown("### Relationship")
+        st.write(f"**Trust Level:** {selected_contact.get('trust_level') or 'Not set'}")
+        st.write(f"**Relationship Stage:** {selected_contact.get('relationship_stage') or 'Not set'}")
+
+    st.markdown("---")
+
+    # =========================================
+    # ✅ EDIT STRUCTURED PLAYBOOK
+    # =========================================
+
+    st.subheader("✏️ Edit Structured Playbook")
+
+    with st.form("structured_playbook_form"):
+
+        st.markdown("### Communication")
+
+        formality_options = ["", "Formal", "Balanced", "Informal"]
+        channel_options = ["", "Email", "Phone", "WhatsApp", "Face-to-face"]
+        meeting_options = ["", "Short", "Detailed", "Structured", "Informal"]
+
+        sp_formality = st.selectbox(
+            "Formality",
+            formality_options,
+            index=formality_options.index(selected_contact["formality"])
+            if selected_contact.get("formality") in formality_options
+            else 0
+        )
+
+        sp_channel = st.selectbox(
+            "Preferred Channel",
+            channel_options,
+            index=channel_options.index(selected_contact["preferred_channel"])
+            if selected_contact.get("preferred_channel") in channel_options
+            else 0
+        )
+
+        sp_meeting = st.selectbox(
+            "Meeting Style",
+            meeting_options,
+            index=meeting_options.index(selected_contact["meeting_style"])
+            if selected_contact.get("meeting_style") in meeting_options
+            else 0
+        )
+
+        st.markdown("### Decision Making")
+
+        decision_options = ["", "Fast", "Medium", "Slow"]
+        price_options = ["", "Low", "Medium", "High"]
+        approval_options = ["", "Individual", "Team", "Board", "Multi-level"]
+
+        sp_decision = st.selectbox(
+            "Decision Speed",
+            decision_options,
+            index=decision_options.index(selected_contact["decision_speed"])
+            if selected_contact.get("decision_speed") in decision_options
+            else 0
+        )
+
+        sp_price = st.selectbox(
+            "Price Sensitivity",
+            price_options,
+            index=price_options.index(selected_contact["price_sensitivity"])
+            if selected_contact.get("price_sensitivity") in price_options
+            else 0
+        )
+
+        sp_approval = st.selectbox(
+            "Approval Process",
+            approval_options,
+            index=approval_options.index(selected_contact["approval_process"])
+            if selected_contact.get("approval_process") in approval_options
+            else 0
+        )
+
+        st.markdown("### Relationship")
+
+        trust_options = ["", "Low", "Medium", "High"]
+        stage_options = ["", "New", "Developing", "Established", "Strategic"]
+
+        sp_trust = st.selectbox(
+            "Trust Level",
+            trust_options,
+            index=trust_options.index(selected_contact["trust_level"])
+            if selected_contact.get("trust_level") in trust_options
+            else 0
+        )
+
+        sp_stage = st.selectbox(
+            "Relationship Stage",
+            stage_options,
+            index=stage_options.index(selected_contact["relationship_stage"])
+            if selected_contact.get("relationship_stage") in stage_options
+            else 0
+        )
+
+        save_playbook = st.form_submit_button("💾 Save Structured Playbook")
+
+        if save_playbook:
+
+            supabase.table("contacts").update({
+                "formality": sp_formality or None,
+                "preferred_channel": sp_channel or None,
+                "meeting_style": sp_meeting or None,
+                "decision_speed": sp_decision or None,
+                "price_sensitivity": sp_price or None,
+                "approval_process": sp_approval or None,
+                "trust_level": sp_trust or None,
+                "relationship_stage": sp_stage or None
+            }).eq("id", selected_contact["id"]).execute()
+
+            st.success("✅ Structured Playbook saved successfully")
+            st.rerun()
+
+    # =========================================
     # ✅ INTERACTION HISTORY
     # =========================================
 
