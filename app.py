@@ -338,11 +338,15 @@ if contacts_response.data:
     if "⏳ Slow decision maker" in patterns:
         if not selected_contact.get("decision_speed"):
             suggestions["decision_speed"] = "Slow"
-
+    if "⚡ Fast decision maker" in patterns:
+        if not selected_contact.get("decision_speed"):
+            suggestions["decision_speed"] = "Fast"
     if "🏢 Prefers formal communication" in patterns:
         if not selected_contact.get("formality"):
             suggestions["formality"] = "Formal"
-
+    if "😊 Responds well to friendly tone" in patterns:
+        if not selected_contact.get("formality"):
+            suggestions["formality"] = "Balanced"
     if suggestions:
 
         for field, value in suggestions.items():
