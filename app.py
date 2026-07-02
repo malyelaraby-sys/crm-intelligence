@@ -30,11 +30,23 @@ contacts_response = supabase.table("contacts").select("*").execute()
 if contacts_response.data:
 
     contact_names = [c["name"] for c in contacts_response.data]
-    selected_name = st.selectbox("Select a contact", contact_names)
 
-    selected_contact = next(c for c in contacts_response.data if c["name"] == selected_name)
+    if "selected_contact_name" not in st.session_state:
+        st.session_state.selected_contact_name = contact_names[0]
+
+    selected_name = st.selectbox(
+        "Select a contact",
+        contact_names,
+        key="selected_contact_name"
+    )
+
+    selected_contact = next(
+        c for c in contacts_response.data
+        if c["name"] == selected_name
+    )
 
     st.markdown("---")
+
 
     # ✅ Basic Info
     st.subheader("👤 Basic Information")
@@ -310,6 +322,46 @@ if contacts_response.data:
 
     st.markdown("---")
 
+    # =========================================
+    # ✅ SUGGESTED STRUCTURED PLAYBOOK UPDATES
+    # =========================================
+
+    st.markdown("---")
+    st.subheader("💡 Suggested Structured Playbook Updates")
+
+    suggestions = {}
+
+    if "💰 Price sensitive" in patterns:
+        if not selected_contact.get("price_sensitivity"):
+            suggestions["price_sensitivity"] = "High"
+
+    if "⏳ Slow decision maker" in patterns:
+        if not selected_contact.get("decision_speed"):
+            suggestions["decision_speed"] = "Slow"
+
+    if "🏢 Prefers formal communication" in patterns:
+        if not selected_contact.get("formality"):
+            suggestions["formality"] = "Formal"
+
+    if suggestions:
+
+        for field, value in suggestions.items():
+            st.write(f"✅ {field.replace('_', ' ').title()} → {value}")
+
+        if st.button("⚡ Apply Suggestions"):
+
+            supabase.table("contacts").update(
+                suggestions
+            ).eq(
+                "id",
+                selected_contact["id"]
+            ).execute()
+
+            st.success("✅ Suggestions applied")
+            st.rerun()
+
+    else:
+        st.info("No suggestions available")
     # =========================================
     # ✅ ADD INTERACTION
     # =========================================
