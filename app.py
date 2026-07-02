@@ -1,5 +1,6 @@
 import streamlit as st
 from supabase import create_client
+from datetime import datetime
 
 # ✅ Page setup
 st.set_page_config(page_title="CRM Intelligence", layout="wide")
@@ -123,6 +124,91 @@ if contacts_response.data:
         st.write(f"**Relationship Stage:** {selected_contact.get('relationship_stage') or 'Not set'}")
 
     st.markdown("---")
+
+    # =========================================
+    # ✅ CLIENT TASKS
+    # =========================================
+
+    st.subheader("✅ Client Tasks")
+
+    tasks = supabase.table("tasks") \
+        .select("*") \
+        .eq("contact_id", selected_contact["id"]) \
+        .order("created_at", desc=True) \
+        .execute()
+
+    if tasks.data:
+
+        for task in tasks.data:
+
+            status_icon = "✅" if task["status"] == "Completed" else "⬜"
+
+            task_text = (
+                f"{status_icon} {task['title']} "
+                f"(Due: {task['due_date'] or 'No due date'})"
+            )
+
+            if task.get("completed_at"):
+                task_text += f" | Completed: {task['completed_at'][:10]}"
+
+            st.write(task_text)
+
+            if task["status"] == "Open":
+
+                completion_date = st.date_input(
+                    f"Completion Date #{task['id']}",
+                    key=f"completion_date_{task['id']}"
+                )
+
+                if st.button(
+                    f"✔ Complete Task #{task['id']}",
+                    key=f"complete_task_{task['id']}"
+                ):
+
+                    supabase.table("tasks").update({
+                        "status": "Completed",
+                        "completed_at": completion_date.isoformat()
+                    }).eq(
+                        "id",
+                        task["id"]
+                    ).execute()
+
+                    st.success("✅ Task completed")
+                    st.rerun()
+
+    else:
+        st.info("No tasks for this client yet")
+
+    st.markdown("---")
+
+    # =========================================
+    # ✅ ADD TASK
+    # =========================================
+
+    st.subheader("➕ Add Task")
+
+    with st.form("add_task_form"):
+
+        task_title = st.text_input(
+            "Task",
+            placeholder="Send proposal, schedule follow-up..."
+        )
+
+        due_date = st.date_input("Due Date")
+
+        save_task = st.form_submit_button("Save Task")
+
+        if save_task and task_title:
+
+            supabase.table("tasks").insert({
+                "contact_id": selected_contact["id"],
+                "title": task_title,
+                "due_date": str(due_date),
+                "status": "Open"
+            }).execute()
+
+            st.success("✅ Task created")
+            st.rerun()
 
     # =========================================
     # ✅ EDIT STRUCTURED PLAYBOOK
