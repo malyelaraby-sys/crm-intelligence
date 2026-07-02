@@ -330,27 +330,39 @@ if contacts_response.data:
     st.subheader("💡 Suggested Structured Playbook Updates")
 
     suggestions = {}
+    suggestion_reasons = {}
 
     if "💰 Price sensitive" in patterns:
         if not selected_contact.get("price_sensitivity"):
             suggestions["price_sensitivity"] = "High"
-
+            suggestion_reasons["price_sensitivity"] = "💰 Price sensitive"
     if "⏳ Slow decision maker" in patterns:
         if not selected_contact.get("decision_speed"):
             suggestions["decision_speed"] = "Slow"
+            suggestion_reasons["decision_speed"] = "⏳ Slow decision maker"
     if "⚡ Fast decision maker" in patterns:
         if not selected_contact.get("decision_speed"):
             suggestions["decision_speed"] = "Fast"
+            suggestion_reasons["decision_speed"] = "⚡ Fast decision maker"
     if "🏢 Prefers formal communication" in patterns:
         if not selected_contact.get("formality"):
             suggestions["formality"] = "Formal"
+            suggestion_reasons["formality"] = "🏢 Prefers formal communication"
     if "😊 Responds well to friendly tone" in patterns:
         if not selected_contact.get("formality"):
             suggestions["formality"] = "Balanced"
+            suggestion_reasons["formality"] = "😊 Responds well to friendly tone"
     if suggestions:
 
         for field, value in suggestions.items():
-            st.write(f"✅ {field.replace('_', ' ').title()} → {value}")
+
+            st.markdown(
+                f"✅ **{field.replace('_', ' ').title()}** → **{value}**"
+            )
+
+            st.caption(
+                f"Reason: {suggestion_reasons.get(field, 'Pattern detected')}"
+            )
 
         if st.button("⚡ Apply Suggestions"):
 
