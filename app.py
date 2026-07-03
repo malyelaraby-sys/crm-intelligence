@@ -264,7 +264,12 @@ if contacts_response.data:
 
     st.subheader("➕ Add Task")
 
-    with st.form("add_task_form"):
+    if "task_form_version" not in st.session_state:
+        st.session_state.task_form_version = 0
+
+    with st.form(
+        f"add_task_form_{st.session_state.task_form_version}"
+    ):
 
         task_title = st.text_input(
             "Task",
@@ -408,9 +413,42 @@ if contacts_response.data:
 
     if interactions.data:
         for interaction in interactions.data:
-            st.markdown(f"**{interaction['type']}**")
-            st.markdown(f"📝 {format_text(interaction['notes'])}")
-            st.markdown(f"🧠 Insight: {format_text(interaction['insights_learned'])}")
+            transport = interaction.get("transportation_cost") or 0
+            parking = interaction.get("parking_cost") or 0
+            other = interaction.get("other_expenses") or 0
+
+            total_expense = transport + parking + other
+            st.markdown(f"### {interaction['type']}")
+            st.write(
+                f"📅 Date: {interaction.get('interaction_date', 'Not set')}"
+            )
+
+            if interaction.get("from_location") or interaction.get("to_location"):
+                st.write(
+                    f"📍 {interaction.get('from_location', '')} → "
+                    f"{interaction.get('to_location', '')}"
+                )
+
+            if interaction.get("distance_km"):
+                st.write(
+                    f"🚗 Distance: {interaction.get('distance_km')} KM"
+                )
+
+            if total_expense:
+                st.write(
+                    f"💰 Total Expense: {total_expense:.2f}"
+                )
+
+            if interaction.get("notes"):
+                st.markdown(
+                    f"📝 {format_text(interaction['notes'])}"
+                )
+
+            if interaction.get("insights_learned"):
+                st.markdown(
+                    f"🧠 Insight: {format_text(interaction['insights_learned'])}"
+                )
+
             st.write("---")
     else:
         st.info("No interactions yet")
@@ -547,9 +585,63 @@ if contacts_response.data:
 
     st.subheader("➕ Log Interaction")
 
-    with st.form("interaction_form"):
+    if "interaction_form_version" not in st.session_state:
+     st.session_state.interaction_form_version = 0
 
-        interaction_type = st.selectbox("Type", ["Call", "Meeting", "WhatsApp", "Email"])
+    with st.form(
+        f"interaction_form_{st.session_state.interaction_form_version}"
+    ):
+
+        interaction_type = st.selectbox(
+            "Type",
+            ["Call", "Meeting", "WhatsApp", "Email"]
+        )
+
+        interaction_date = st.date_input(
+            "Interaction Date"
+        )
+
+        st.markdown("### 🚗 Travel & Expenses")
+
+        from_location = st.text_input(
+            "From Location"
+        )
+
+        to_location = st.text_input(
+            "To Location"
+        )
+
+        distance_km = st.number_input(
+            "Distance (KM)",
+            min_value=0.0,
+            step=1.0
+        )
+
+        transportation_cost = st.number_input(
+            "Transportation Cost",
+            min_value=0.0,
+            step=10.0
+        )
+
+        parking_cost = st.number_input(
+            "Parking Cost",
+            min_value=0.0,
+            step=5.0
+        )
+
+        other_expenses = st.number_input(
+            "Other Expenses",
+            min_value=0.0,
+            step=5.0
+        )
+
+        total_expense = (
+            transportation_cost +
+            parking_cost +
+            other_expenses
+        )
+
+        st.info(f"💰 Total Expense: {total_expense:.2f}")
 
         notes = st.text_area("What happened?")
 
@@ -564,12 +656,22 @@ if contacts_response.data:
             supabase.table("interactions").insert({
                 "contact_id": selected_contact["id"],
                 "type": interaction_type,
+                "interaction_date": str(interaction_date),
+                "from_location": from_location,
+                "to_location": to_location,
+                "distance_km": distance_km,
+                "transportation_cost": transportation_cost,
+                "parking_cost": parking_cost,
+                "other_expenses": other_expenses,
                 "notes": notes,
                 "insights_learned": insights
             }).execute()
+            
 
             st.success("✅ Interaction saved!")
+            st.session_state.interaction_form_version += 1
             st.rerun()
+
 
 else:
     st.info("No contacts yet")
