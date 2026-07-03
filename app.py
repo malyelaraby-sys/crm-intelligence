@@ -59,6 +59,83 @@ if contacts_response.data:
 
     st.markdown("---")
 
+    # =========================================
+    # ✅ CLIENT CLASSIFICATION
+    # =========================================
+
+    st.subheader("🏷 Client Classification")
+
+    class_col1, class_col2 = st.columns(2)
+
+    with class_col1:
+        st.write(
+            f"**Status:** {selected_contact.get('client_status') or 'Prospect'}"
+        )
+
+    with class_col2:
+        st.write(
+            f"**Tier:** {selected_contact.get('tier') or 'Not set'}"
+        )
+        st.markdown("---")
+
+    st.subheader("✏️ Edit Classification")
+
+    with st.form("classification_form"):
+
+        status_options = [
+            "Prospect",
+            "Active",
+            "Strategic",
+            "Dormant",
+            "Lost"
+        ]
+
+        tier_options = [
+            "",
+            "A",
+            "B",
+            "C"
+        ]
+
+        current_status = (
+            selected_contact.get("client_status")
+            or "Prospect"
+        )
+
+        current_tier = (
+            selected_contact.get("tier")
+            or ""
+        )
+
+        client_status = st.selectbox(
+            "Client Status",
+            status_options,
+            index=status_options.index(current_status)
+        )
+
+        tier = st.selectbox(
+            "Client Tier",
+            tier_options,
+            index=tier_options.index(current_tier)
+        )
+
+        save_classification = st.form_submit_button(
+            "💾 Save Classification"
+        )
+
+        if save_classification:
+
+            supabase.table("contacts").update({
+                "client_status": client_status,
+                "tier": tier or None
+            }).eq(
+                "id",
+                selected_contact["id"]
+            ).execute()
+
+            st.success("✅ Classification saved")
+            st.rerun()
+
     # ✅ Intelligence
     st.subheader("🧠 Customer Intelligence")
 
