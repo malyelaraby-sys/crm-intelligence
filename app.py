@@ -14,6 +14,7 @@ SUPABASE_KEY = "sb_publishable_h8hgAkyRWyC4Sh9QnrDbwQ_MNjeuShu"
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 sales_users = supabase.table("sales_users").select("*").order("name").execute()
+companies = supabase.table("companies").select("*").order("name").execute()
 
 
 # ✅ Helper for formatting
@@ -23,6 +24,101 @@ def format_text(text):
     return ""
 
 
+# =========================================
+# ✅ COMPANIES
+# =========================================
+
+st.header("🏢 Companies")
+company_list = supabase.table("companies").select("*").order("name").execute()
+
+if company_list.data:
+
+    st.subheader("Company Directory")
+
+    for company in company_list.data:
+
+        owner_name = next(
+            (u["name"] for u in sales_users.data if u["id"] == company.get("owner_id")),
+            "Unassigned",
+        )
+
+        st.markdown(f"""
+**{company['name']}**
+
+Industry: {company.get('industry') or 'Not set'}
+
+City: {company.get('city') or 'Not set'}
+
+Owner: {owner_name}
+""")
+
+        st.markdown("---")
+with st.form("add_company_form"):
+
+    company_name = st.text_input("Company Name")
+
+    industry = st.text_input("Industry")
+
+    city = st.text_input("City")
+
+    owner_names = [u["name"] for u in sales_users.data]
+
+    selected_owner = st.selectbox("Account Owner", owner_names)
+
+    save_company = st.form_submit_button("✅ Save Company")
+
+    if save_company and company_name:
+
+        owner = next(u for u in sales_users.data if u["name"] == selected_owner)
+
+        supabase.table("companies").insert(
+            {
+                "name": company_name,
+                "industry": industry,
+                "city": city,
+                "owner_id": owner["id"],
+            }
+        ).execute()
+
+        st.success("✅ Company saved")
+        st.rerun()
+company_names = [c["name"] for c in companies.data]
+
+selected_company_name = st.selectbox("Select Company", company_names)
+selected_company = next(c for c in companies.data if c["name"] == selected_company_name)
+st.subheader("🏢 Company Profile")
+
+owner_name = next(
+    (
+        u["name"]
+        for u in sales_users.data
+        if u["id"] == selected_company.get("owner_id")
+    ),
+    "Unassigned",
+)
+
+st.write(f"**Company:** {selected_company['name']}")
+st.write(f"**Industry:** {selected_company.get('industry') or 'Not set'}")
+st.write(f"**City:** {selected_company.get('city') or 'Not set'}")
+st.write(f"**Owner:** {owner_name}")
+
+company_contacts = (
+    supabase.table("contacts")
+    .select("*")
+    .eq("company_id", selected_company["id"])
+    .execute()
+)
+
+st.subheader("👥 Company Contacts")
+
+if company_contacts.data:
+
+    for contact in company_contacts.data:
+
+        st.write(f"• {contact['name']} " f"({contact.get('role') or 'No role'})")
+
+else:
+    st.info("No contacts assigned")
 # =========================================
 # ✅ CONTACTS + PROFILE
 # =========================================
@@ -37,7 +133,11 @@ contacts_response = supabase.table("contacts").select("*").execute()
 
 if contacts_response.data:
 
-    filtered_contacts = contacts_response.data
+    filtered_contacts = [
+        c
+        for c in contacts_response.data
+        if c.get("company_id") == selected_company["id"]
+    ]
 
     if selected_owner_filter != "All":
 
@@ -73,7 +173,18 @@ if contacts_response.data:
     # ✅ Basic Info
     st.subheader("👤 Basic Information")
     st.write(f"**Name:** {selected_contact['name']}")
-    st.write(f"**Company:** {selected_contact['company']}")
+    company_name = selected_contact.get("company", "Not Assigned")
+
+if selected_contact.get("company_id"):
+
+    company_record = next(
+        (c for c in companies.data if c["id"] == selected_contact["company_id"]), None
+    )
+
+    if company_record:
+        company_name = company_record["name"]
+
+    st.write(f"**Company:** {company_name}")
     st.write(f"**Role:** {selected_contact['role']}")
     st.write(f"**Phone:** {selected_contact['phone']}")
     st.write(f"**Email:** {selected_contact['email']}")
@@ -755,7 +866,10 @@ if st.session_state.show_form:
     with st.form("add_contact_form"):
 
         name = st.text_input("Name")
-        company = st.text_input("Company")
+        company_names = [c["name"] for c in companies.data]
+
+        selected_company = st.selectbox("Company", company_names)
+
         role = st.text_input("Role")
         email = st.text_input("Email")
         phone = st.text_input("Phone")
@@ -783,10 +897,14 @@ if st.session_state.show_form:
 
         if submitted:
             owner = next(u for u in sales_users.data if u["name"] == selected_owner)
+            company_record = next(
+                c for c in companies.data if c["name"] == selected_company
+            )
             supabase.table("contacts").insert(
                 {
                     "name": name,
-                    "company": company,
+                    "company": selected_company,
+                    "company_id": company_record["id"],
                     "role": role,
                     "email": email,
                     "phone": phone,
