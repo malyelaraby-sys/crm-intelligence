@@ -226,9 +226,7 @@ if page == "👤 Contacts":
             )
 
             filtered_contacts = [
-                c
-                for c in contacts_response.data
-                if c.get("owner_id") == selected_user["id"]
+                c for c in filtered_contacts if c.get("owner_id") == selected_user["id"]
             ]
 
         contact_names = [c["name"] for c in filtered_contacts]
@@ -457,108 +455,6 @@ if page == "👤 Contacts":
         st.markdown("---")
 
         # =========================================
-        # ✅ CLIENT TASKS
-        # =========================================
-
-        st.subheader("✅ Client Tasks")
-
-        tasks = (
-            supabase.table("tasks")
-            .select("*")
-            .eq("contact_id", selected_contact["id"])
-            .order("created_at", desc=True)
-            .execute()
-        )
-
-        if tasks.data:
-
-            for task in tasks.data:
-
-                status_icon = "✅" if task["status"] == "Completed" else "⬜"
-
-                task_text = (
-                    f"{status_icon} {task['title']} "
-                    f"(Due: {task['due_date'] or 'No due date'})"
-                )
-
-                if task.get("completed_at"):
-                    task_text += f" | Completed: {task['completed_at'][:10]}"
-
-                st.write(task_text)
-
-                task_owner = next(
-                    (
-                        u["name"]
-                        for u in sales_users.data
-                        if u["id"] == task.get("owner_id")
-                    ),
-                    "Unassigned",
-                )
-
-                st.caption(f"👤 Owner: {task_owner}")
-
-                if task["status"] == "Open":
-
-                    completion_date = st.date_input(
-                        f"Completion Date #{task['id']}",
-                        key=f"completion_date_{task['id']}",
-                    )
-
-                    if st.button(
-                        f"✔ Complete Task #{task['id']}",
-                        key=f"complete_task_{task['id']}",
-                    ):
-
-                        supabase.table("tasks").update(
-                            {
-                                "status": "Completed",
-                                "completed_at": completion_date.isoformat(),
-                            }
-                        ).eq("id", task["id"]).execute()
-
-                        st.success("✅ Task completed")
-                        st.rerun()
-
-        else:
-            st.info("No tasks for this client yet")
-
-        st.markdown("---")
-
-        # =========================================
-        # ✅ ADD TASK
-        # =========================================
-
-        st.subheader("➕ Add Task")
-
-        if "task_form_version" not in st.session_state:
-            st.session_state.task_form_version = 0
-
-        with st.form(f"add_task_form_{st.session_state.task_form_version}"):
-
-            task_title = st.text_input(
-                "Task", placeholder="Send proposal, schedule follow-up..."
-            )
-
-            due_date = st.date_input("Due Date")
-
-            save_task = st.form_submit_button("Save Task")
-
-            if save_task and task_title:
-
-                supabase.table("tasks").insert(
-                    {
-                        "contact_id": selected_contact["id"],
-                        "title": task_title,
-                        "owner_id": selected_contact.get("owner_id"),
-                        "due_date": str(due_date),
-                        "status": "Open",
-                    }
-                ).execute()
-
-                st.success("✅ Task created")
-                st.rerun()
-
-        # =========================================
         # ✅ EDIT STRUCTURED PLAYBOOK
         # =========================================
 
@@ -683,264 +579,464 @@ if page == "👤 Contacts":
                 st.success("✅ Structured Playbook saved successfully")
                 st.rerun()
 
-        # =========================================
-        # ✅ INTERACTION HISTORY
-        # =========================================
+    else:
+        st.info("No contacts yet")
+if page == "✅ Tasks":
 
-        st.subheader("📜 Interaction History")
+    st.header("✅ Tasks")
 
-        interactions = (
-            supabase.table("interactions")
-            .select("*")
-            .eq("contact_id", selected_contact["id"])
-            .order("created_at", desc=True)
-            .execute()
-        )
+    company_names = [c["name"] for c in companies.data]
 
-        if interactions.data:
-            for interaction in interactions.data:
-                transport = interaction.get("transportation_cost") or 0
-                parking = interaction.get("parking_cost") or 0
-                other = interaction.get("other_expenses") or 0
+    selected_company_name = st.selectbox(
+        "🏢 Company",
+        company_names,
+        key="tasks_company",
+    )
 
-                total_expense = transport + parking + other
-                st.markdown(f"### {interaction['type']}")
+    selected_company = next(
+        c for c in companies.data if c["name"] == selected_company_name
+    )
 
-                interaction_owner = next(
-                    (
-                        u["name"]
-                        for u in sales_users.data
-                        if u["id"] == interaction.get("owner_id")
-                    ),
-                    "Unassigned",
+    contacts_response = (
+        supabase.table("contacts")
+        .select("*")
+        .eq("company_id", selected_company["id"])
+        .execute()
+    )
+
+    contact_names = [c["name"] for c in contacts_response.data]
+
+    if not contact_names:
+        st.info("No contacts found for this company")
+        st.stop()
+
+    selected_name = st.selectbox(
+        "👤 Contact",
+        contact_names,
+        key="tasks_contact",
+    )
+
+    selected_contact = next(
+        c for c in contacts_response.data if c["name"] == selected_name
+    )
+
+    # =========================================
+    # ✅ CLIENT TASKS
+    # =========================================
+
+    st.subheader("✅ Client Tasks")
+
+    tasks = (
+        supabase.table("tasks")
+        .select("*")
+        .eq("contact_id", selected_contact["id"])
+        .order("created_at", desc=True)
+        .execute()
+    )
+
+    if tasks.data:
+
+        for task in tasks.data:
+
+            status_icon = "✅" if task["status"] == "Completed" else "⬜"
+
+            task_text = (
+                f"{status_icon} {task['title']} "
+                f"(Due: {task['due_date'] or 'No due date'})"
+            )
+
+            if task.get("completed_at"):
+                task_text += f" | Completed: {task['completed_at'][:10]}"
+
+            st.write(task_text)
+
+            task_owner = next(
+                (
+                    u["name"]
+                    for u in sales_users.data
+                    if u["id"] == task.get("owner_id")
+                ),
+                "Unassigned",
+            )
+
+            st.caption(f"👤 Owner: {task_owner}")
+
+            if task["status"] == "Open":
+
+                completion_date = st.date_input(
+                    f"Completion Date #{task['id']}",
+                    key=f"completion_date_{task['id']}",
                 )
 
-                st.caption(f"👤 Owner: {interaction_owner}")
+                if st.button(
+                    f"✔ Complete Task #{task['id']}",
+                    key=f"complete_task_{task['id']}",
+                ):
 
-                st.write(f"📅 Date: {interaction.get('interaction_date', 'Not set')}")
+                    supabase.table("tasks").update(
+                        {
+                            "status": "Completed",
+                            "completed_at": completion_date.isoformat(),
+                        }
+                    ).eq("id", task["id"]).execute()
 
-                if interaction.get("from_location") or interaction.get("to_location"):
-                    st.write(
-                        f"📍 {interaction.get('from_location', '')} → "
-                        f"{interaction.get('to_location', '')}"
-                    )
+                    st.success("✅ Task completed")
+                    st.rerun()
 
-                if interaction.get("distance_km"):
-                    st.write(f"🚗 Distance: {interaction.get('distance_km')} KM")
+    else:
+        st.info("No tasks for this client yet")
 
-                if total_expense:
-                    st.write(f"💰 Total Expense: {total_expense:.2f}")
+    st.markdown("---")
 
-                if interaction.get("notes"):
-                    st.markdown(f"📝 {format_text(interaction['notes'])}")
+    # =========================================
+    # ✅ ADD TASK
+    # =========================================
 
-                if interaction.get("insights_learned"):
-                    st.markdown(
-                        f"🧠 Insight: {format_text(interaction['insights_learned'])}"
-                    )
+    st.subheader("➕ Add Task")
 
-                st.write("---")
+    if "task_form_version" not in st.session_state:
+        st.session_state.task_form_version = 0
+
+    with st.form(f"add_task_form_{st.session_state.task_form_version}"):
+
+        task_title = st.text_input(
+            "Task",
+            placeholder="Send proposal, schedule follow-up...",
+        )
+
+        due_date = st.date_input("Due Date")
+
+        save_task = st.form_submit_button("Save Task")
+
+        if save_task and task_title:
+
+            supabase.table("tasks").insert(
+                {
+                    "contact_id": selected_contact["id"],
+                    "title": task_title,
+                    "owner_id": selected_contact.get("owner_id"),
+                    "due_date": str(due_date),
+                    "status": "Open",
+                }
+            ).execute()
+
+            st.success("✅ Task created")
+            st.rerun()
+if page == "📞 Interactions":
+
+    st.header("📞 Interactions")
+
+    company_names = [c["name"] for c in companies.data]
+
+    selected_company_name = st.selectbox(
+        "🏢 Company",
+        company_names,
+        key="interactions_company",
+    )
+
+    selected_company = next(
+        c for c in companies.data if c["name"] == selected_company_name
+    )
+
+    contacts_response = (
+        supabase.table("contacts")
+        .select("*")
+        .eq("company_id", selected_company["id"])
+        .execute()
+    )
+
+    contact_names = [c["name"] for c in contacts_response.data]
+
+    if not contact_names:
+        st.info("No contacts found for this company")
+        st.stop()
+
+    selected_name = st.selectbox(
+        "👤 Contact",
+        contact_names,
+        key="interactions_contact",
+    )
+
+    selected_contact = next(
+        c for c in contacts_response.data if c["name"] == selected_name
+    )
+
+    # =========================================
+    # ✅ INTERACTION HISTORY
+    # =========================================
+
+    st.subheader("📜 Interaction History")
+
+    interactions = (
+        supabase.table("interactions")
+        .select("*")
+        .eq("contact_id", selected_contact["id"])
+        .order("created_at", desc=True)
+        .execute()
+    )
+
+    if interactions.data:
+
+        for interaction in interactions.data:
+
+            transport = interaction.get("transportation_cost") or 0
+            parking = interaction.get("parking_cost") or 0
+            other = interaction.get("other_expenses") or 0
+
+            total_expense = transport + parking + other
+
+            st.markdown(f"### {interaction['type']}")
+
+            interaction_owner = next(
+                (
+                    u["name"]
+                    for u in sales_users.data
+                    if u["id"] == interaction.get("owner_id")
+                ),
+                "Unassigned",
+            )
+
+            st.caption(f"👤 Owner: {interaction_owner}")
+
+            st.write(f"📅 Date: {interaction.get('interaction_date', 'Not set')}")
+
+            if interaction.get("from_location") or interaction.get("to_location"):
+                st.write(
+                    f"📍 {interaction.get('from_location', '')} → "
+                    f"{interaction.get('to_location', '')}"
+                )
+
+            if interaction.get("distance_km"):
+                st.write(f"🚗 Distance: {interaction.get('distance_km')} KM")
+
+            if total_expense:
+                st.write(f"💰 Total Expense: {total_expense:.2f}")
+
+            if interaction.get("notes"):
+                st.markdown(f"📝 {format_text(interaction['notes'])}")
+
+            if interaction.get("insights_learned"):
+                st.markdown(
+                    f"🧠 Insight: " f"{format_text(interaction['insights_learned'])}"
+                )
+
+            st.write("---")
+
+    else:
+        st.info("No interactions yet")
+
+    # =========================================
+    # ✅ DERIVED INSIGHTS
+    # =========================================
+
+    st.markdown("---")
+    st.subheader("🧠 Derived Insights (Auto-generated)")
+
+    if interactions.data:
+
+        all_insights = [
+            i["insights_learned"] for i in interactions.data if i["insights_learned"]
+        ]
+
+        if all_insights:
+
+            combined_insights = "\n\n".join(all_insights)
+
+            st.markdown(format_text(combined_insights))
+
         else:
-            st.info("No interactions yet")
+            st.info("No insights captured yet")
 
-        # =========================================
-        # ✅ DERIVED INSIGHTS
-        # =========================================
+    else:
+        st.info("No interaction data yet")
 
-        st.markdown("---")
-        st.subheader("🧠 Derived Insights (Auto-generated)")
+    # =========================================
+    # ✅ KEY PATTERNS
+    # =========================================
 
-        if interactions.data:
-            all_insights = [
-                i["insights_learned"]
+    st.markdown("---")
+    st.subheader("📊 Key Patterns")
+
+    combined_text = ""
+
+    if interactions.data:
+        combined_text += " ".join(
+            [
+                i["insights_learned"].lower()
                 for i in interactions.data
                 if i["insights_learned"]
             ]
-
-            if all_insights:
-                combined_insights = "\n\n".join(all_insights)
-                st.markdown(format_text(combined_insights))
-            else:
-                st.info("No insights captured yet")
-
-        else:
-            st.info("No interaction data yet")
-
-        # =========================================
-        # ✅ IMPROVED KEY PATTERNS (FIXED ✅)
-        # =========================================
-
-        st.markdown("---")
-        st.subheader("📊 Key Patterns")
-
-        combined_text = ""
-
-        # ✅ Add interaction insights
-        if interactions.data:
-            combined_text += " ".join(
-                [
-                    i["insights_learned"].lower()
-                    for i in interactions.data
-                    if i["insights_learned"]
-                ]
-            )
-
-        # ✅ Add contact profile fields
-        combined_text += (
-            " " + (selected_contact.get("communication_style") or "").lower()
         )
-        combined_text += (
-            " " + (selected_contact.get("personality_traits") or "").lower()
-        )
-        combined_text += " " + (selected_contact.get("preferences") or "").lower()
 
-        patterns = []
+    combined_text += " " + (selected_contact.get("communication_style") or "").lower()
 
-        if "price" in combined_text or "expensive" in combined_text:
-            patterns.append("💰 Price sensitive")
+    combined_text += " " + (selected_contact.get("personality_traits") or "").lower()
 
-        if "slow" in combined_text or "takes time" in combined_text:
-            patterns.append("⏳ Slow decision maker")
+    combined_text += " " + (selected_contact.get("preferences") or "").lower()
 
-        if "fast" in combined_text:
-            patterns.append("⚡ Fast decision maker")
+    patterns = []
 
-        if "friendly" in combined_text:
-            patterns.append("😊 Responds well to friendly tone")
+    if "price" in combined_text or "expensive" in combined_text:
+        patterns.append("💰 Price sensitive")
 
-        if "formal" in combined_text:
-            patterns.append("🏢 Prefers formal communication")
+    if "slow" in combined_text or "takes time" in combined_text:
+        patterns.append("⏳ Slow decision maker")
 
-        if patterns:
-            for p in patterns:
-                st.write(f"- {p}")
-        else:
-            st.info("No clear patterns detected yet")
+    if "fast" in combined_text:
+        patterns.append("⚡ Fast decision maker")
 
-        st.markdown("---")
+    if "friendly" in combined_text:
+        patterns.append("😊 Responds well to friendly tone")
 
-        # =========================================
-        # ✅ SUGGESTED STRUCTURED PLAYBOOK UPDATES
-        # =========================================
+    if "formal" in combined_text:
+        patterns.append("🏢 Prefers formal communication")
 
-        st.markdown("---")
-        st.subheader("💡 Suggested Structured Playbook Updates")
+    if patterns:
 
-        suggestions = {}
-        suggestion_reasons = {}
-
-        if "💰 Price sensitive" in patterns:
-            if not selected_contact.get("price_sensitivity"):
-                suggestions["price_sensitivity"] = "High"
-                suggestion_reasons["price_sensitivity"] = "💰 Price sensitive"
-        if "⏳ Slow decision maker" in patterns:
-            if not selected_contact.get("decision_speed"):
-                suggestions["decision_speed"] = "Slow"
-                suggestion_reasons["decision_speed"] = "⏳ Slow decision maker"
-        if "⚡ Fast decision maker" in patterns:
-            if not selected_contact.get("decision_speed"):
-                suggestions["decision_speed"] = "Fast"
-                suggestion_reasons["decision_speed"] = "⚡ Fast decision maker"
-        if "🏢 Prefers formal communication" in patterns:
-            if not selected_contact.get("formality"):
-                suggestions["formality"] = "Formal"
-                suggestion_reasons["formality"] = "🏢 Prefers formal communication"
-        if "😊 Responds well to friendly tone" in patterns:
-            if not selected_contact.get("formality"):
-                suggestions["formality"] = "Balanced"
-                suggestion_reasons["formality"] = "😊 Responds well to friendly tone"
-        if suggestions:
-
-            for field, value in suggestions.items():
-
-                st.markdown(f"✅ **{field.replace('_', ' ').title()}** → **{value}**")
-
-                st.caption(
-                    f"Reason: {suggestion_reasons.get(field, 'Pattern detected')}"
-                )
-
-            if st.button("⚡ Apply Suggestions"):
-
-                supabase.table("contacts").update(suggestions).eq(
-                    "id", selected_contact["id"]
-                ).execute()
-
-                st.success("✅ Suggestions applied")
-                st.rerun()
-
-        else:
-            st.info("No suggestions available")
-        # =========================================
-        # ✅ ADD INTERACTION
-        # =========================================
-
-        st.subheader("➕ Log Interaction")
-
-        if "interaction_form_version" not in st.session_state:
-            st.session_state.interaction_form_version = 0
-
-        with st.form(f"interaction_form_{st.session_state.interaction_form_version}"):
-
-            interaction_type = st.selectbox(
-                "Type", ["Call", "Meeting", "WhatsApp", "Email"]
-            )
-
-            interaction_date = st.date_input("Interaction Date")
-
-            st.markdown("### 🚗 Travel & Expenses")
-
-            from_location = st.text_input("From Location")
-
-            to_location = st.text_input("To Location")
-
-            distance_km = st.number_input("Distance (KM)", min_value=0.0, step=1.0)
-
-            transportation_cost = st.number_input(
-                "Transportation Cost", min_value=0.0, step=10.0
-            )
-
-            parking_cost = st.number_input("Parking Cost", min_value=0.0, step=5.0)
-
-            other_expenses = st.number_input("Other Expenses", min_value=0.0, step=5.0)
-
-            total_expense = transportation_cost + parking_cost + other_expenses
-
-            st.info(f"💰 Total Expense: {total_expense:.2f}")
-
-            notes = st.text_area("What happened?")
-
-            insights = st.text_area(
-                "What did you learn about this client?",
-                placeholder="Capture behavior, preferences, reactions...",
-            )
-
-            submitted_interaction = st.form_submit_button("Save Interaction")
-
-            if submitted_interaction:
-                supabase.table("interactions").insert(
-                    {
-                        "contact_id": selected_contact["id"],
-                        "owner_id": selected_contact.get("owner_id"),
-                        "type": interaction_type,
-                        "interaction_date": str(interaction_date),
-                        "from_location": from_location,
-                        "to_location": to_location,
-                        "distance_km": distance_km,
-                        "transportation_cost": transportation_cost,
-                        "parking_cost": parking_cost,
-                        "other_expenses": other_expenses,
-                        "notes": notes,
-                        "insights_learned": insights,
-                    }
-                ).execute()
-
-                st.success("✅ Interaction saved!")
-                st.session_state.interaction_form_version += 1
-                st.rerun()
+        for p in patterns:
+            st.write(f"- {p}")
 
     else:
-        st.info("No contacts yet")
+        st.info("No clear patterns detected yet")
 
+    # =========================================
+    # ✅ SUGGESTED STRUCTURED PLAYBOOK UPDATES
+    # =========================================
+
+    st.markdown("---")
+    st.subheader("💡 Suggested Structured Playbook Updates")
+
+    suggestions = {}
+    suggestion_reasons = {}
+
+    if "💰 Price sensitive" in patterns:
+        if not selected_contact.get("price_sensitivity"):
+            suggestions["price_sensitivity"] = "High"
+            suggestion_reasons["price_sensitivity"] = "💰 Price sensitive"
+
+    if "⏳ Slow decision maker" in patterns:
+        if not selected_contact.get("decision_speed"):
+            suggestions["decision_speed"] = "Slow"
+            suggestion_reasons["decision_speed"] = "⏳ Slow decision maker"
+
+    if "⚡ Fast decision maker" in patterns:
+        if not selected_contact.get("decision_speed"):
+            suggestions["decision_speed"] = "Fast"
+            suggestion_reasons["decision_speed"] = "⚡ Fast decision maker"
+
+    if "🏢 Prefers formal communication" in patterns:
+        if not selected_contact.get("formality"):
+            suggestions["formality"] = "Formal"
+            suggestion_reasons["formality"] = "🏢 Prefers formal communication"
+
+    if "😊 Responds well to friendly tone" in patterns:
+        if not selected_contact.get("formality"):
+            suggestions["formality"] = "Balanced"
+            suggestion_reasons["formality"] = "😊 Responds well to friendly tone"
+
+    if suggestions:
+
+        for field, value in suggestions.items():
+
+            st.markdown(f"✅ **{field.replace('_', ' ').title()}** → **{value}**")
+
+            st.caption(f"Reason: {suggestion_reasons.get(field, 'Pattern detected')}")
+
+        if st.button("⚡ Apply Suggestions"):
+
+            supabase.table("contacts").update(suggestions).eq(
+                "id", selected_contact["id"]
+            ).execute()
+
+            st.success("✅ Suggestions applied")
+            st.rerun()
+
+    else:
+        st.info("No suggestions available")
+
+    # =========================================
+    # ✅ ADD INTERACTION
+    # =========================================
+
+    st.subheader("➕ Log Interaction")
+
+    if "interaction_form_version" not in st.session_state:
+        st.session_state.interaction_form_version = 0
+
+    with st.form(f"interaction_form_{st.session_state.interaction_form_version}"):
+
+        interaction_type = st.selectbox(
+            "Type",
+            ["Call", "Meeting", "WhatsApp", "Email"],
+        )
+
+        interaction_date = st.date_input("Interaction Date")
+
+        st.markdown("### 🚗 Travel & Expenses")
+
+        from_location = st.text_input("From Location")
+
+        to_location = st.text_input("To Location")
+
+        distance_km = st.number_input(
+            "Distance (KM)",
+            min_value=0.0,
+            step=1.0,
+        )
+
+        transportation_cost = st.number_input(
+            "Transportation Cost",
+            min_value=0.0,
+            step=10.0,
+        )
+
+        parking_cost = st.number_input(
+            "Parking Cost",
+            min_value=0.0,
+            step=5.0,
+        )
+
+        other_expenses = st.number_input(
+            "Other Expenses",
+            min_value=0.0,
+            step=5.0,
+        )
+
+        total_expense = transportation_cost + parking_cost + other_expenses
+
+        st.info(f"💰 Total Expense: {total_expense:.2f}")
+
+        notes = st.text_area("What happened?")
+
+        insights = st.text_area(
+            "What did you learn about this client?",
+            placeholder="Capture behavior, preferences, reactions...",
+        )
+
+        submitted_interaction = st.form_submit_button("Save Interaction")
+
+        if submitted_interaction:
+
+            supabase.table("interactions").insert(
+                {
+                    "contact_id": selected_contact["id"],
+                    "owner_id": selected_contact.get("owner_id"),
+                    "type": interaction_type,
+                    "interaction_date": str(interaction_date),
+                    "from_location": from_location,
+                    "to_location": to_location,
+                    "distance_km": distance_km,
+                    "transportation_cost": transportation_cost,
+                    "parking_cost": parking_cost,
+                    "other_expenses": other_expenses,
+                    "notes": notes,
+                    "insights_learned": insights,
+                }
+            ).execute()
+
+            st.success("✅ Interaction saved!")
+            st.session_state.interaction_form_version += 1
+            st.rerun()
 if page == "👤 Contacts":
     # =========================================
     # ✅ ADD CONTACT (BOTTOM UX)
