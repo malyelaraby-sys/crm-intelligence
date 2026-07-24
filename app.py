@@ -101,13 +101,68 @@ st.write(f"**Company:** {selected_company['name']}")
 st.write(f"**Industry:** {selected_company.get('industry') or 'Not set'}")
 st.write(f"**City:** {selected_company.get('city') or 'Not set'}")
 st.write(f"**Owner:** {owner_name}")
-
 company_contacts = (
     supabase.table("contacts")
     .select("*")
     .eq("company_id", selected_company["id"])
     .execute()
 )
+st.subheader("📊 Company Metrics")
+
+company_contact_ids = (
+    [c["id"] for c in company_contacts.data] if company_contacts.data else []
+)
+
+contact_count = len(company_contact_ids)
+
+open_tasks = 0
+completed_tasks = 0
+interaction_count = 0
+total_distance = 0
+total_expenses = 0
+
+if company_contact_ids:
+
+    tasks = (
+        supabase.table("tasks")
+        .select("*")
+        .in_("contact_id", company_contact_ids)
+        .execute()
+    )
+
+    interactions = (
+        supabase.table("interactions")
+        .select("*")
+        .in_("contact_id", company_contact_ids)
+        .execute()
+    )
+
+    if tasks.data:
+
+        open_tasks = len([t for t in tasks.data if t["status"] == "Open"])
+
+        completed_tasks = len([t for t in tasks.data if t["status"] == "Completed"])
+
+    if interactions.data:
+
+        interaction_count = len(interactions.data)
+
+        total_distance = sum(i.get("distance_km") or 0 for i in interactions.data)
+
+        total_expenses = sum(
+            (i.get("transportation_cost") or 0)
+            + (i.get("parking_cost") or 0)
+            + (i.get("other_expenses") or 0)
+            for i in interactions.data
+        )
+
+st.write(f"**Contacts:** {contact_count}")
+st.write(f"**Open Tasks:** {open_tasks}")
+st.write(f"**Completed Tasks:** {completed_tasks}")
+st.write(f"**Interactions:** {interaction_count}")
+st.write(f"**Total Distance:** {total_distance:.1f} KM")
+st.write(f"**Total Expenses:** {total_expenses:.2f}")
+
 
 st.subheader("👥 Company Contacts")
 
@@ -866,16 +921,27 @@ if st.session_state.show_form:
     with st.form("add_contact_form"):
 
         name = st.text_input("Name")
+
         company_names = [c["name"] for c in companies.data]
 
         selected_company = st.selectbox("Company", company_names)
 
+        selected_company_record = next(
+            c for c in companies.data if c["name"] == selected_company
+        )
+
+        company_owner = next(
+            (
+                u["name"]
+                for u in sales_users.data
+                if u["id"] == selected_company_record.get("owner_id")
+            ),
+            "Unassigned",
+        )
+
         role = st.text_input("Role")
         email = st.text_input("Email")
         phone = st.text_input("Phone")
-        owner_names = [u["name"] for u in sales_users.data]
-
-        selected_owner = st.selectbox("Account Owner", owner_names)
 
         st.subheader("🧠 Customer Intelligence")
 
@@ -896,7 +962,7 @@ if st.session_state.show_form:
         submitted = st.form_submit_button("✅ Save Contact")
 
         if submitted:
-            owner = next(u for u in sales_users.data if u["name"] == selected_owner)
+            owner_id = selected_company_record["owner_id"]
             company_record = next(
                 c for c in companies.data if c["name"] == selected_company
             )
@@ -909,7 +975,7 @@ if st.session_state.show_form:
                     "email": email,
                     "phone": phone,
                     "communication_style": communication_style,
-                    "owner_id": owner["id"],
+                    "owner_id": owner_id,
                     "personality_traits": personality_traits,
                     "preferences": preferences,
                     "lifestyle_notes": lifestyle_notes,
